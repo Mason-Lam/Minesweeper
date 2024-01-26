@@ -10,7 +10,7 @@ class MinesweeperCell(Label):
         """cell=MinesweeeperCell(master,coord)->MinesweeperCell
         creates a blank minesweeper cell with a coordinate"""
         Label.__init__(self, master, height=1, width=2, text='',
-                       bg='white', font=('Arial', 24), relief=RAISED)
+                       bg='white', font=('Arial', 18), relief=RAISED)
         self.flagged = False  # attribute to store whether square is flagged
         self.reveal = False  # attribute to store whether the square is exposed
         self.coord = coord  # attribute to store the location of the square
@@ -47,20 +47,13 @@ class MinesweeperCell(Label):
             if not self.is_flagged():
                 # checks if the user has already flagged the amount of bombs on the grid
                 if self.master.get_bombs() > 0:
-                    self['text'] = '*'  # changes the text to an asterisk
+                    self['text'] = 'F'  # changes the text to an asterisk
                     self.flagged = True  # changes the flagged attribute to True
                     self.master.numBombs -= 1  # alerts the grid that the user has flagged
-                    # checks if the flagged square is an actual bomb
-                    if self.get_number() == 10:
-                        self.master.exposed += 1  # alerts the grid that the user has flagged a bomb
-                        self.master.win()  # checks if the user has won
             else:
                 self['text'] = ''  # changes the text to a blank
                 self.flagged = False  # changes the flagged attribute to False
                 self.master.numBombs += 1  # alerts the grid the user has un-flagged a bomb
-                # if statement to check if the user un-flagged an actual bomb
-                if self.get_number() == 10:
-                    self.master.exposed -= 1  # alerts the grid that the user has un-flagged a bomb
             self.master.bombLabel['text'] = str(self.master.get_bombs())  # updates the bomb label
 
     def is_flagged(self):
@@ -102,7 +95,7 @@ class MinesweeperGrid(Frame):
                 self.cells[(row, column)].grid(row=2 * row, column=2 * column)  # grids the new cell
 
         self.numBombs = bombs  # attribute to store the number of bombs minus the number of cells flagged
-        self.area = width * height  # attribute to store the are of the grid
+        self.area = width * height - bombs # attribute to store the area of the grid minus bombs
         self.exposed = 0  # stores the number of squares exposed by the user
         count = bombs  # counting variable equal to the number of bombs
         self.BombList = []  # list to store the coordinates of each bomb
@@ -161,6 +154,8 @@ class MinesweeperGrid(Frame):
         for cell in self.cells:
             self.cells[cell].reveal = True
         messagebox.showerror('Minesweeper', 'KABOOM! You lose.', parent=self)  # creates a message box
+        self.master.destroy()
+        setup_minesweeper()
 
     def win(self):
         """Checks for a win and alerts
@@ -171,6 +166,8 @@ class MinesweeperGrid(Frame):
             # set each bombs reveal attribute to true
             for bomb in self.BombList:
                 self.cells[bomb].reveal = True
+            self.master.destroy()
+            setup_minesweeper()
 
     def get_bombs(self):
         """Returns the current number of boms
@@ -179,7 +176,13 @@ class MinesweeperGrid(Frame):
 
     def solve(self):
         """Solves a minesweeper Grid"""
-        # for loop that cycles through each cell
+        # for loop that cycles through each bomb
+        for bomb in self.BombList:
+            # checks if the bomb is not flagged
+            if not self.cells[bomb].is_flagged():
+                # highlights the bomb and reveals it
+                self.cells[bomb].flag('<Button-2>')
+
         for cell in self.cells:
             # checks for bomb
             if self.cells[cell].get_number() != 10:
@@ -187,10 +190,6 @@ class MinesweeperGrid(Frame):
                 if self.cells[cell].is_flagged():
                     self.cells[cell].flag('<Button-2>')
                 self.cells[cell].expose('<Button-1>')
-            else:
-                # checks for flag
-                if not self.cells[cell].is_flagged():
-                    self.cells[cell].flag('<Button-2>')
 
     def reset(self):
         """Resets the Minesweeper Grid with the same
@@ -230,13 +229,13 @@ class MinesweeperMenu(Frame):
     def __init__(self, master):
         Frame.__init__(self, master, bg='white')  # initializes the grid as a frame
         self.grid()
-        self.master = master;
+        # self.master = master
         self.width = IntVar()
         self.height = IntVar()
         self.bombs = IntVar()
-        self.width.set(10)
-        self.height.set(10)
-        self.bombs.set(9)
+        self.width.set(24)
+        self.height.set(20)
+        self.bombs.set(99)
 
         Label(self, text="Width").grid(row=0, column=0, padx=(100, 0), pady=(50, 10))
         Label(self, text="Height").grid(row=1, column=0, padx=(100, 0), pady=(0, 10))
@@ -245,9 +244,12 @@ class MinesweeperMenu(Frame):
         Entry(self, textvariable=self.height).grid(row=1, column=1, padx=(0, 100), pady=(0, 10))
         Entry(self, textvariable=self.bombs).grid(row=2, column=1, padx=(0, 100), pady=(0, 10))
 
-        Button(self, text="Initialize Game", command=self.init_game).grid(row=3, column=0, padx=(100, 0), pady=(0,50))
+        Button(self, text="Initialize Game", command=self.init_game).grid(row=3, column=0, padx=(100, 0), pady=(0, 50))
 
     def init_game(self):
+        if self.bombs.get() > self.width.get() * self.height.get() - 9:
+            messagebox.showerror('Minesweeper Menu', 'Invalid Input', parent=self.master)
+            return
         self.master.destroy()
         play_minesweeper(self.width.get(), self.height.get(), self.bombs.get())
 
