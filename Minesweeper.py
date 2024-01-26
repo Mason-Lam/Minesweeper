@@ -22,6 +22,8 @@ class MinesweeperCell(Label):
         """MinesweeperCell.expose(event)->None
         exposes a square if it is not flagged or
         already revealed"""
+        if not self.master.isInitialized:
+            self.master.init_bombs()
         # checks if the square is not revealed or flagged
         if not self.is_revealed() and not self.is_flagged():
             self['relief'] = SUNKEN
@@ -41,6 +43,8 @@ class MinesweeperCell(Label):
 
     def flag(self, event):
         """Marks the square as a bomb"""
+        if not self.master.isInitialized:
+            return
         # if statement to check if the square is not revealed
         if not self.is_revealed():
             # if statement to check if the square is already flagged
@@ -49,12 +53,12 @@ class MinesweeperCell(Label):
                 if self.master.get_bombs() > 0:
                     self['text'] = 'F'  # changes the text to an asterisk
                     self.flagged = True  # changes the flagged attribute to True
-                    self.master.numBombs -= 1  # alerts the grid that the user has flagged
+                    self.master.flags += 1  # alerts the grid that the user has flagged
             else:
                 self['text'] = ''  # changes the text to a blank
                 self.flagged = False  # changes the flagged attribute to False
-                self.master.numBombs += 1  # alerts the grid the user has un-flagged a bomb
-            self.master.bombLabel['text'] = str(self.master.get_bombs())  # updates the bomb label
+                self.master.flags -= 1  # alerts the grid the user has un-flagged a bomb
+            self.master.bombLabel['text'] = str(self.master.numBombs - self.master.flags)  # updates the bomb label
 
     def is_flagged(self):
         """Checks if the cell is flagged"""
@@ -91,29 +95,15 @@ class MinesweeperGrid(Frame):
         for column in range(width):
             # for loop that cycles the length of height
             for row in range(height):
-                self.cells[(row, column)] = MinesweeperCell(self, (row, column))  # creates a new MinesweeperCell
-                self.cells[(row, column)].grid(row=2 * row, column=2 * column)  # grids the new cell
+                self.cells[(column, row)] = MinesweeperCell(self, (column, row))  # creates a new MinesweeperCell
+                self.cells[(column, row)].grid(row=2 * row, column=2 * column)  # grids the new cell
 
         self.numBombs = bombs  # attribute to store the number of bombs minus the number of cells flagged
-        self.area = width * height - bombs # attribute to store the area of the grid minus bombs
+        self.flags = 0
         self.exposed = 0  # stores the number of squares exposed by the user
-        count = bombs  # counting variable equal to the number of bombs
         self.BombList = []  # list to store the coordinates of each bomb
-        # while loop that runs until each bomb has been added
-        while count > 0:
-            bomb = (random.randrange(0, height), random.randrange(0, width))
-            # if statement to check if the cell chosen is already a bomb
-            if self.cells[bomb].number != 10:
-                self.cells[bomb].number = 10  # changes the cell value to a bomb
-                self.BombList.append(bomb)  # adds the cell to the bomb list
-                count -= 1
-        # for loop that cycles through each bomb
-        for bomb in self.BombList:
-            # for loop that cycles through each cell
-            for cell in self.cells:
-                # if statement to check if the cell is not a bomb and is next to a bomb
-                if self.cells[cell].get_number() != 10 and MinesweeperGrid.nearby(bomb, cell):
-                    self.cells[cell].number += 1
+        self.isInitialized = False
+
         self.bombLabel = Label(self, text=str(bombs), font=('impact', 24),
                                bg='white')  # creates a label to display the number of bombs
         self.bombLabel.grid(row=(height * 2) + 1, columnspan=width * 2)
@@ -122,9 +112,31 @@ class MinesweeperGrid(Frame):
                                                                                  columnspan=width * 2)
         # reset button
         self.height = height
-        self.width = height
+        self.width = width
         Button(self, text='Reset', font=('impact', 16), command=self.reset).grid(row=(height * 2) + 3,
                                                                                  columnspan=width * 2)
+        self.init_bombs()
+
+    def init_bombs(self):
+        self.BombList = []
+        self.isInitialized = True
+        count = self.numBombs  # counting variable equal to the number of bombs
+        # while loop that runs until each bomb has been added
+        while count > 0:
+            bomb = (random.randrange(0, self.width), random.randrange(0, self.height))
+            # if statement to check if the cell chosen is already a bomb
+            if self.cells[bomb].number != 10:
+                self.cells[bomb].number = 10  # changes the cell value to a bomb
+                self.BombList.append(bomb)  # adds the cell to the bomb list
+                count -= 1
+        # for loop that cycles through each bomb
+        for bomb in self.BombList:
+            # for loop that cycles through each cell
+            adjacent = self.adjacentSquares(bomb)
+            for cell in adjacent:
+                # if statement to check if the cell is not a bomb and is next to a bomb
+                if self.cells[cell].get_number() != 10 and MinesweeperGrid.nearby(bomb, cell):
+                    self.cells[cell].number += 1
 
     @staticmethod
     def nearby(one, two):
@@ -132,14 +144,28 @@ class MinesweeperGrid(Frame):
         return (abs(one[0] - two[0]) == 1 or abs(one[0] - two[0]) == 0) and (
                 abs(one[1] - two[1]) == 1 or abs(one[1] - two[1]) == 0)
 
+    def adjacentSquares(self, coord):
+        adjacent = []
+        for newColumn in range(-1, 2, 1):
+            newX = coord[0] + newColumn
+            if newX < 0 or newX > self.width - 1:
+                continue
+            for newRow in range(-1, 2, 1):
+                if newRow == 0 and newColumn == 0:
+                    continue
+                newY = coord[1] + newRow
+                if newY < 0 or newY > self.height - 1:
+                    continue
+                adjacent.append((newX, newY))
+        return adjacent
+
     def blank(self, coord):
         """function that exposes all squares
         within one unit of a coordinate"""
         # for that cycles through each cell
-        for cell in self.cells:
-            # if statement to check if the cells are adjacent
-            if self.nearby(coord, cell):
-                self.cells[cell].expose('<Button-1>')  # exposes the cell
+        adjacent = self.adjacentSquares(coord)
+        for pos in adjacent:
+            self.cells[pos].expose("<Button-1>")
 
     def lose(self):
         """Alerts the user they lost"""
@@ -161,7 +187,7 @@ class MinesweeperGrid(Frame):
         """Checks for a win and alerts
         the user if so"""
         # checks if the number of squares exposed is equal to the area
-        if self.exposed == self.area:
+        if self.exposed == self.width * self.height - self.numBombs:
             messagebox.showinfo('Minesweeper', 'Congratulations -- you won!', parent=self)  # creates a message box
             # set each bombs reveal attribute to true
             for bomb in self.BombList:
@@ -204,23 +230,7 @@ class MinesweeperGrid(Frame):
             self.cells[cell]['text'] = ''
             self.cells[cell]['bg'] = 'white'
             self.cells[cell]['fg'] = 'black'
-        self.BombList = []
-        # resets the bomb locations
-        count = self.numBombs
-        while count > 0:
-            bomb = (random.randrange(0, self.height), random.randrange(0, self.width))
-            # if statement to check if the cell chosen is already a bomb
-            if self.cells[bomb].number != 10:
-                self.cells[bomb].number = 10  # changes the cell value to a bomb
-                self.BombList.append(bomb)  # adds the cell to the bomb list
-                count -= 1
-        # for loop that cycles through each bomb
-        for bomb in self.BombList:
-            # for loop that cycles through each cell
-            for cell in self.cells:
-                # if statement to check if the cell is not a bomb and is next to a bomb
-                if self.cells[cell].get_number() != 10 and self.nearby(bomb, cell):
-                    self.cells[cell].number += 1
+        self.init_bombs()
         self.exposed = 0
         self.bombLabel['text'] = str(self.get_bombs())
 
