@@ -23,7 +23,7 @@ class MinesweeperCell(Label):
         exposes a square if it is not flagged or
         already revealed"""
         if not self.master.isInitialized:
-            self.master.init_bombs()
+            self.master.init_bombs(self.coord)
         # checks if the square is not revealed or flagged
         if not self.is_revealed() and not self.is_flagged():
             self['relief'] = SUNKEN
@@ -115,15 +115,18 @@ class MinesweeperGrid(Frame):
         self.width = width
         Button(self, text='Reset', font=('impact', 16), command=self.reset).grid(row=(height * 2) + 3,
                                                                                  columnspan=width * 2)
-        self.init_bombs()
 
-    def init_bombs(self):
+    def init_bombs(self, coord):
         self.BombList = []
         self.isInitialized = True
         count = self.numBombs  # counting variable equal to the number of bombs
+        safeSquares = self.adjacentSquares(coord)
+        safeSquares.append(coord)
         # while loop that runs until each bomb has been added
         while count > 0:
             bomb = (random.randrange(0, self.width), random.randrange(0, self.height))
+            if bomb in safeSquares:
+                continue
             # if statement to check if the cell chosen is already a bomb
             if self.cells[bomb].number != 10:
                 self.cells[bomb].number = 10  # changes the cell value to a bomb
@@ -230,8 +233,9 @@ class MinesweeperGrid(Frame):
             self.cells[cell]['text'] = ''
             self.cells[cell]['bg'] = 'white'
             self.cells[cell]['fg'] = 'black'
-        self.init_bombs()
+        # self.init_bombs()
         self.exposed = 0
+        self.isInitialized = False
         self.bombLabel['text'] = str(self.get_bombs())
 
 
@@ -264,21 +268,41 @@ class MinesweeperMenu(Frame):
         play_minesweeper(self.width.get(), self.height.get(), self.bombs.get())
 
 
+def center(win):
+    """
+    centers a tkinter window
+    :param win: the main window or Toplevel window to center
+    """
+    win.update_idletasks()
+    width = win.winfo_width()
+    frm_width = win.winfo_rootx() - win.winfo_x()
+    win_width = width + 2 * frm_width
+    height = win.winfo_height()
+    titlebar_height = win.winfo_rooty() - win.winfo_y()
+    win_height = height + titlebar_height + frm_width
+    x = win.winfo_screenwidth() // 2 - win_width // 2
+    y = win.winfo_screenheight() // 2 - win_height // 2
+    win.geometry('{}x{}+{}+{}'.format(width, height, x, y))
+    win.deiconify()
+
+
 def play_minesweeper(width, height, bombs):
     """Plays a game of minesweeper with a specified
     width, height, and bombs in the grid"""
     root = Tk()
     root.title('Minesweeper')
     minesweeper = MinesweeperGrid(root, width, height, bombs)
+    center(root)
     minesweeper.mainloop()
 
 
 def setup_minesweeper():
     root = Tk()
     root.title('Minesweeper Menu')
+
     minesweeper_menu = MinesweeperMenu(root)
+    center(root)
     minesweeper_menu.mainloop()
 
 
-# play_minesweeper(10, 10, 10)
 setup_minesweeper()
