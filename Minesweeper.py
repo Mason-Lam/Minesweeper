@@ -233,7 +233,6 @@ class MinesweeperGrid(Frame):
             self.cells[cell]['text'] = ''
             self.cells[cell]['bg'] = 'white'
             self.cells[cell]['fg'] = 'black'
-        # self.init_bombs()
         self.exposed = 0
         self.isInitialized = False
         self.bombLabel['text'] = str(self.get_bombs())
